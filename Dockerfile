@@ -1,20 +1,22 @@
-# Use the latest LTS version of Node.js
-FROM node:18-alpine
- 
-# Set the working directory inside the container
+# Білдер стадія
+FROM node:18-alpine AS builder
+
 WORKDIR /app
- 
-# Copy package.json and package-lock.json
 COPY package*.json ./
- 
-# Install dependencies
-RUN npm install
- 
-# Copy the rest of your application files
+RUN npm ci  # Використовуємо ci замість install для production
 COPY . .
- 
-# Expose the port your app runs on
+RUN npm run build  # Збираємо production-версію
+
+# Фінальна стадія
+FROM node:18-alpine AS runner
+WORKDIR /app
+
+ENV NODE_ENV=production
+
+# Копіюємо тільки необхідні файли
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
+
 EXPOSE 3000
- 
-# Define the command to run your app
-CMD ["npm", "start"]
+CMD ["node", "server.js"]  # Використовуємо standalone сервер
